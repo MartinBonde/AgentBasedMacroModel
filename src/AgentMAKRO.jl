@@ -13,6 +13,7 @@ abstract type AbstractStatisticsAgency <: AbstractAgent end
 abstract type AbstractInvestor <: AbstractAgent end
 abstract type AbstractWorld <: AbstractAgent end
 
+include("Settings.jl")
 include("Utils.jl")
 include("Firms.jl")
 include("Households.jl")
@@ -21,7 +22,6 @@ include("Interactions.jl")
 include("WorldStatistics.jl")
 include("Worlds.jl")
 include("Simulations.jl")
-include("Settings.jl")
 
 # export all
 for n in names(@__MODULE__; all=true)
