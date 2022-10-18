@@ -14,6 +14,7 @@ function invest!(i::Investor, world::AbstractWorld)
     for _ in 1:n_new_firms
         f = add_firm!(world::World, price(s)[end], wage(s)[end])
     end
+    return
 end
 
 discounted_profits(f::AbstractFirm) = profits(f) / (1 + Settings.discount_rate)^age(f)

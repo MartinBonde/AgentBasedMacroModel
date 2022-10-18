@@ -13,8 +13,8 @@ Firm agent
     revenues::Float64 = 0
     payroll::Float64 = 0
     vacancies::Float64 = 0
-    job_applications::Int64 = 0
-    job_quits::Int64 = 0
+    job_applications::Float64 = 0
+    job_quits::Float64 = 0
 
     optimal_labor::Float64 = 0.0
     expected_demand::Float64 = 0.0
@@ -104,6 +104,7 @@ function set_price!(f::Firm)
         g = Settings.firm_max_price_markdown * min(1.0, Settings.firm_price_markdown_sensitivity * (yᵒ - sᴱ) / yᵒ)
         f.price = (1 - g) * Pᴱ
     end
+    return
 end
 
 function set_wage!(f::Firm)
@@ -119,6 +120,7 @@ function set_wage!(f::Firm)
         g = Settings.firm_max_wage_markdown * min(1.0, Settings.firm_wage_markdown_sensitivity * (aᴱ - qᴱ) / optimal_labor(f))
         f.wage = (1 - g) * Wᴱ
     end
+    return
 end
 
 profits(f::Firm) = revenues(f) - payroll(f)
@@ -139,9 +141,9 @@ function update_expectations!(f::Firm, price, wage)
 end
 
 """Expecation of a variable given a past state and a new observation"""
-function expectation(state, observation)
+function expectation(state, observation)::Float64
     γ = Settings.firm_expectations_smooth
-    return (1 - γ) * observation + γ * state
+    return (1.0 - γ) * observation + γ * state
 end
 
 function set_optimal_labor!(f::Firm)
@@ -189,8 +191,9 @@ function age!(f::Firm, world::AbstractWorld)
             || (optimal_profit(f) < 0 && rand() < Settings.firm_optimal_closure_probability)
             || (profits(f) < 0.0 && rand() < Settings.firm_lossmaking_closure_probability)
         )
-            return close_firm!(f, world)
+            close_firm!(f, world)
         end
     end
+    return
 end
 

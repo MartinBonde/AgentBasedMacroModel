@@ -1,5 +1,3 @@
-using Memoize
-
 """
 Household agent
 """
@@ -31,8 +29,10 @@ has_provider(hh::Household) = !isnothing(hh.provider)
 """Households always consume their entire income"""
 consumer_spending(hh::Household) = max(0.0, cash(hh))
 
-@memoize death_probability(age) = (1 + exp(0.1 * age / Settings.periods_pr_year - 10.0))^(1.0 / Settings.periods_pr_year) - 1
 death_probability(hh::Household) = death_probability(age(hh))
+__death_probability(age)::Float64 = (1 + exp(0.1 * age / Settings.periods_pr_year - 10.0))^(1.0 / Settings.periods_pr_year) - 1
+DEATH_PROBABILITY::Dict{Int64, Float64} = Dict(a => __death_probability(a) for a in 0:(Settings.max_household_age * Settings.periods_pr_year))
+death_probability(age) = DEATH_PROBABILITY[age]
 
 function job_search!(
     hh::Household,
@@ -45,6 +45,7 @@ function job_search!(
             apply_for_job!(hh, f)
         end
     end
+    return
 end
 
 """
@@ -59,6 +60,7 @@ function provider_search!(
             return change_provider!(hh, f)
         end
     end
+    return
 end
 
 """Does the household prefer provider a over provider b?"""
@@ -79,12 +81,14 @@ function age!(hh::Household, world::AbstractWorld)
     else
         hh.age += 1
     end
+    return
 end
 
 function job_destruction!(hh::Household)
     if (is_employed(hh) && (rand() < Settings.job_quit_probability || age(hh) ≥ Settings.pension_age))
         quit_job!(hh)
     end
+    return
 end
 
 function job_search!(hh::Household, world::AbstractWorld)
@@ -95,13 +99,14 @@ function job_search!(hh::Household, world::AbstractWorld)
     elseif age(hh) < Settings.pension_age
         job_search!(hh, world, 0.0, Settings.job_search_n_firms)
     end
+    return
 end
 
 function consumer_market!(hh::Household, world::AbstractWorld)
-    spending = consumer_spending(hh)
     can_supply(provider(hh)) || drop_provider!(hh)
     if !has_provider(hh) || rand() < Settings.provider_search_probability
         provider_search!(hh, world)
     end
-    has_provider(hh) && purchase_consumption!(hh, spending)
+    has_provider(hh) && purchase_consumption!(hh)
+    return
 end

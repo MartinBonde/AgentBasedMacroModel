@@ -31,7 +31,7 @@ provider_search_n_firms::Int64 = round(120 / periods_pr_year)
 # --------------------------------------------------------------------------------
 # Firms
 # --------------------------------------------------------------------------------
-firm_productivity_growth = (1.02)^(1/periods_pr_year) - 1
+firm_productivity_growth::Float64 = (1.02)^(1/periods_pr_year) - 1
 
 firm_optimal_closure_probability::Float64 = 0.5 #/ periods_pr_year # Probability of closing IF not expected to become profitable
 firm_lossmaking_closure_probability::Float64 = 0.0 #/ periods_pr_year # Probability of closing IF not profitable

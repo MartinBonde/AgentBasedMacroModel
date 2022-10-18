@@ -8,7 +8,7 @@ end
 
 function quit_job!(hh::AbstractHousehold)
     f = employer(hh)
-    f.job_quits += 1
+    f.job_quits += 1.0
     destroy_job!(hh, f)
 end
 
@@ -19,18 +19,18 @@ function destroy_job!(hh::AbstractHousehold, f::AbstractFirm)
     set_vacancies!(f)
 end
 
-function purchase_consumption!(hh::AbstractHousehold, spending)
-    f = provider(hh)
+purchase_consumption!(hh::AbstractHousehold) = purchase_consumption!(hh, provider(hh), consumer_spending(hh))
+function purchase_consumption!(hh::AbstractHousehold, f::AbstractFirm, spending)
     f.demand += spending / price(f)
-
     hh.cash -= spending
     f.cash += spending
 end
 
+"""Delete household and give any remaining assets to another randomly selected household."""
 function die!(hh::AbstractHousehold, world::AbstractWorld)
     is_employed(hh) && quit_job!(hh)
     delete!(world.households, hh)
-    distribute_cash!(households(world), hh.cash)
+    rand(households(world)).cash += hh.cash
 end
 
 function close_firm!(f::AbstractFirm, world::AbstractWorld)
@@ -38,6 +38,7 @@ function close_firm!(f::AbstractFirm, world::AbstractWorld)
         destroy_job!(hh, f)
     end
     delete!(world.firms, f)
+    return
 end
 
 function change_provider!(hh::AbstractHousehold, f::AbstractFirm)
@@ -49,7 +50,7 @@ function drop_provider!(hh::AbstractHousehold)
 end
 
 function apply_for_job!(hh::AbstractHousehold, f::Firm)
-    f.job_applications += 1
+    f.job_applications += 1.0
     vacancies(f) > 0 && change_job!(hh, f)
 end
 
@@ -70,12 +71,8 @@ function pay_dividends!(world::AbstractWorld)
         dividends += f.cash
         f.cash = 0
     end
-    distribute_cash!(households(world), dividends)
-end
-
-function distribute_cash!(households, amount)
-    pr_household = amount / length(households)
-    for hh in households
+    pr_household = dividends / length(households(world))
+    for hh in households(world)
         hh.cash += pr_household
     end
 end
