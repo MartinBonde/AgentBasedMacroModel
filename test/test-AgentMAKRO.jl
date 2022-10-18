@@ -29,7 +29,8 @@ M = AgentMAKRO
 
 world::World = new_world()
 zero_shock!(world, 50)
-# firm_destruction_shock!(world, 25)
+firm_destruction_shock!(world, 25)
+firm_productivity_shock!(world, 25)
 s = deepcopy(statistics(world))
 s = subset(s, (Settings.periods_pr_year*25+1):length(s))
 
@@ -46,7 +47,7 @@ end
 
 lines(f[1, 1], annual_growth_rate(price(s)), label="Yearly inflation")
 lines!(annual_growth_rate(wage(s)), label="Yearly wage growth")
-lines!(annual_growth_rate(wage(s)./price(s)), label="Yearly real wage growth")
+lines!(annual_growth_rate(wage(s) ./ price(s)), label="Yearly real wage growth")
 # lines(f[1, 1], price(s), label="Price")
 # lines!(wage(s), label="Wage")
 format_axis()

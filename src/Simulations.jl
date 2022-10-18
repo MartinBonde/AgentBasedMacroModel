@@ -1,10 +1,6 @@
 using Random
 using Statistics
 
-export simulation, n_simulations, simulate_shock
-export zero_shock!, firm_destruction_shock!
-export median, quantile
-
 function simulation(seed)
     # Create a common starting point prior to any shocks
     Random.seed!(seed)
@@ -68,30 +64,44 @@ Statistics.quantile(v::Vector{<:AbstractStatisticsAgency}, p) = apply_reduction(
 # median.(zip([1, 2, 3], [1, 1, 3]))
 
 """Run a shock simulation and return statistics"""
-function simulate_shock(world, seed, shock_function)
+function simulate_shock(world, seed, shock_function; years=50)
     Random.seed!(seed)
     shock_world = deepcopy(world)
-    shock_function(shock_world, 50)
+    shock_function(shock_world, years)
     return statistics(shock_world)
 end
 
 """Simulate world for <years> years without any exogenous shocks. Used to create a baseline."""
 function zero_shock!(world, years)
-    for _ in 1:12*years
-        step!(world)
-    end
+    step!(world, years)
     return world
 end
 
 """Close 10% of firms and simulate world for <years> years."""
 function firm_destruction_shock!(world, years)
-    for _ in 1:ceil(0.25 * n_firms(world))
+    for _ in 1:ceil(0.1 * n_firms(world))
         close_firm!(rand(firms(world)), world)
     end
 
-    for _ in 1:12*years
-        step!(world)
-    end
+    step!(world, years)
 
     return world
+end
+
+"""Permanently increase productivity of all firms by 10% and simulate world for <years> years."""
+function firm_productivity_shock!(world, years)
+    world.productivity *= 1.1
+    for f in firms(world)
+        f.productivity *= 1.1
+    end
+
+    step!(world, years)
+
+    return world
+end
+
+function step!(world, years)
+    for _ in 1:Settings.periods_pr_year*years
+        step!(world)
+    end
 end
