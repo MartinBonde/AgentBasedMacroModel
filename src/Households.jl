@@ -29,10 +29,11 @@ has_provider(hh::Household) = !isnothing(hh.provider)
 """Households always consume their entire income"""
 consumer_spending(hh::Household) = max(0.0, cash(hh))
 
-death_probability(hh::Household) = death_probability(age(hh))
-__death_probability(age)::Float64 = (1 + exp(0.1 * age / Settings.periods_pr_year - 10.0))^(1.0 / Settings.periods_pr_year) - 1
-DEATH_PROBABILITY::Dict{Int64, Float64} = Dict(a => __death_probability(a) for a in 0:(Settings.max_household_age * Settings.periods_pr_year))
+__annual_death_probability(age; β=5.0) = exp(1.0 / β * age - Settings.max_household_age / Settings.periods_pr_year / β)
+__death_probability(age) = 1.0 - (1.0 - __annual_death_probability(age / Settings.periods_pr_year))^(1.0 / Settings.periods_pr_year)
+DEATH_PROBABILITY::Dict{Int64, Float64} = Dict(a => __death_probability(a) for a in 0:Settings.max_household_age)
 death_probability(age) = DEATH_PROBABILITY[age]
+death_probability(hh::Household) = death_probability(age(hh))
 
 function job_search!(
     hh::Household,
@@ -43,6 +44,7 @@ function job_search!(
     for f in rand(firms(world), n_firms)
         if wage(f) ≥ reservation_wage
             apply_for_job!(hh, f)
+            return
         end
     end
     return
