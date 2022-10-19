@@ -113,10 +113,12 @@ function set_wage!(f::Firm)
     qᴱ = expected_quits(f)
     v = vacancies(f)
     Wᴱ = expected_wage(f)
-    if (aᴱ - qᴱ) < v # Fewer expected net applications than vacancies
-        g = Settings.firm_max_wage_markup * min(1.0, Settings.firm_wage_markup_sensitivity * (v - (aᴱ - qᴱ)) / optimal_labor(f))
-        f.wage = (1 + g) * Wᴱ
-    elseif v < (aᴱ - qᴱ) # More expected net applications than vacancies
+    if v > 0
+        if (aᴱ - qᴱ) < v # Fewer expected net applications than vacancies
+            g = Settings.firm_max_wage_markup * min(1.0, Settings.firm_wage_markup_sensitivity * (v - (aᴱ - qᴱ)) / optimal_labor(f))
+            f.wage = (1 + g) * Wᴱ
+        end
+    elseif aᴱ > qᴱ # More expected net applications than vacancies
         g = Settings.firm_max_wage_markdown * min(1.0, Settings.firm_wage_markdown_sensitivity * (aᴱ - qᴱ) / optimal_labor(f))
         f.wage = (1 - g) * Wᴱ
     end
