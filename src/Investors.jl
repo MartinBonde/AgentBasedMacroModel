@@ -21,10 +21,11 @@ discounted_profits(f::AbstractFirm) = profits(f) / (1 + Settings.discount_rate)^
 
 function sharpe_ratio(firms)
     π = discounted_profits.(firms)
-    return sum(π) / std(π)
+    return mean(π) / std(π)
 end
 
 function update_expectations!(i::Investor, world::AbstractWorld)
     γ = Settings.investor_expectations_smooth
     i.expected_profitability = γ * i.expected_profitability + (1 - γ) * sharpe_ratio(firms(world))
 end
+
