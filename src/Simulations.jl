@@ -1,81 +1,55 @@
 using Random
 using Statistics
+using Base.Threads
+using ProgressMeter
 
-function simulation(seed)
+"""Create a world and perform a simulation of each scenario in <scenario_functions>."""
+function simulation(scenario_functions; burnin_years=20, simulation_years=20)
     # Create a common starting point prior to any shocks
+    seed = rand(1:2^31)
     Random.seed!(seed)
     world = new_world()
-    zero_shock!(world, 50)
+    zero_shock!(world, burnin_years)
 
     # Simulate scenarios
-    baseline = simulate_shock(world, seed, zero_shock!)
-    firm_destuction = simulate_shock(world, seed, firm_destruction_shock!)
-
-    return (baseline, firm_destuction)
+    simulation_by_scenario = Dict(scenario => simulate_shock(world, seed, scenario, simulation_years) for scenario in scenario_functions)
+    return simulation_by_scenario
 end
 
-function n_simulations(n)
-    baselines = StatisticsAgency[]
-    firm_destruction_shocks = StatisticsAgency[]
-    for _ in 1:n
-        baseline, firm_destuction = simulation(rand(1:2^31))
-        push!(baselines, baseline)
-        push!(firm_destruction_shocks, firm_destuction)
+"""
+Perform <n_simulations> of each scenario in <scenario_functions>
+using multiple threads if available (Julia needs to be started with multiple threads)
+"""
+function n_simulations(n, scenario_functions; burnin_years=20, simulation_years=20)
+    simulations = [[] for _ in 1:nthreads()]
+    p = Progress(n; showspeed=true) # A progress bar showing % of simulations completed
+    @threads for _ in 1:n
+        push!(simulations[threadid()], simulation(scenario_functions; burnin_years, simulation_years))
+        next!(p)
     end
 
-    return baselines, firm_destruction_shocks
+    # Merge arrays from each thread
+    simulations = vcat(simulations...)
+
+    scenario_statistics = Dict(
+        scenario => StatisticsAgency[d[scenario] for d in simulations]
+        for scenario in scenario_functions
+    )
+
+    return scenario_statistics
 end
 
-"""For each simulation in a vector, apply a getter function, then reduce the vector using a reduction function"""
-apply_reduction(v::Vector{<:AbstractStatisticsAgency}, getter, reduction) = reduction.(zip(getter.(v)...))
-
-"""Return a statistics object where each field is the result of reducing the corresponding field of each simulation in <v>."""
-function apply_reduction(v::Vector{T}, reduction) where {T<:AbstractStatisticsAgency}
-    reduced = T()
-    for fieldname in fieldnames(T)
-        getter(x) = getfield(x, fieldname)
-        append!(getfield(reduced, fieldname), apply_reduction(v, getter, reduction))
-    end
-    return reduced
-end
-
-"""Return a statistics object where each field is the median of each simulation in <v>."""
-Statistics.median(v::Vector{<:AbstractStatisticsAgency}) = apply_reduction(v, median)
-
-"""Return a statistics object where each field is the quantile of each simulation in <v>."""
-Statistics.quantile(v::Vector{<:AbstractStatisticsAgency}, p) = apply_reduction(v, x -> quantile(x, p))
-
-# """Return a statistics object that is the result of applying a function to each pair of observations from two statistics objects (typically a baseline and a shock)"""
-# function statistics(shock::T, baseline::T, func) where {T<:AbstractStatisticsAgency}
-#     multipliers = T()
-#     for fieldname in fieldnames(T)
-#         multiplier = func.(getfield(baseline, fieldname), getfield(shock, fieldname))
-#         setfield!(multipliers, fieldname, multiplier)
-#     end
-#     return multipliers
-# end
-
-# """Return a statistics object with all fields set to multipliers between observations"""
-# multiplier(shock, baseline) = statistics(shock, baseline, (s, b) -> s / b - 1)
-
-# """Return a statistics object with all fields set to the difference between observations"""
-# Base.:-(shock, baseline) = statistics(shock, baseline, (s, b) -> s - b)
-
-# median.(zip([1, 2, 3], [1, 1, 3]))
-
-"""Run a shock simulation and return statistics"""
-function simulate_shock(world, seed, shock_function; years=50)
+"""Run a shock simulation and return shock statistics"""
+function simulate_shock(world, seed, scenario_function, years)
     Random.seed!(seed)
     shock_world = deepcopy(world)
-    shock_function(shock_world, years)
-    return statistics(shock_world)
+    scenario_function(shock_world, years)
+    s = statistics(shock_world)
+    return subset(s, (length(s)-(years+2)*Settings.periods_pr_year):length(s))
 end
 
 """Simulate world for <years> years without any exogenous shocks. Used to create a baseline."""
-function zero_shock!(world, years)
-    step!(world, years)
-    return world
-end
+zero_shock!(world, years) = step!(world, years)
 
 """Close 10% of firms and simulate world for <years> years."""
 function firm_destruction_shock!(world, years)
@@ -100,8 +74,10 @@ function firm_productivity_shock!(world, years)
     return world
 end
 
+"""Simulate <years> years"""
 function step!(world, years)
     for _ in 1:Settings.periods_pr_year*years
         step!(world)
     end
+    return world
 end

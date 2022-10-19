@@ -18,15 +18,15 @@ pension_age::Int64 = 67 * periods_pr_year
 household_productivity_distribution::Sampleable = LogNormal()
 
 # Job search
-job_search_n_firms::Int64 = round(12 / periods_pr_year)
-on_the_job_search_n_firms::Int64 = 3
+job_search_n_firms::Int64 = round(52 / periods_pr_year)
+on_the_job_search_n_firms::Int64 = 2
 on_the_job_search_probability::Float64 = 0.3 / periods_pr_year
 
-job_quit_probability::Float64 = 0.2 / periods_pr_year
+job_quit_probability::Float64 = 0.1 / periods_pr_year
 
 # Provider search
-provider_search_probability::Float64 = 0.1 / periods_pr_year
-provider_search_n_firms::Int64 = round(120 / periods_pr_year)
+provider_search_probability::Float64 = 0.2 / periods_pr_year
+provider_search_n_firms::Int64 = round(365 / periods_pr_year)
 
 # --------------------------------------------------------------------------------
 # Firms
@@ -70,7 +70,7 @@ min_remaining_vacancies::Float64 = 1.0
 # Investors
 # --------------------------------------------------------------------------------
 investor_expectations_smooth::Float64 = 0.7
-investor_profit_sensitivity::Float64 = 0.15 / periods_pr_year
+investor_profit_sensitivity::Float64 = 0.15# / periods_pr_year
 discount_rate::Float64 = 1.05^(1 / periods_pr_year) - 1
 
 # --------------------------------------------------------------------------------

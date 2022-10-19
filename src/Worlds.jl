@@ -60,27 +60,26 @@ function new_world()
     # Initialize labor market
     set_vacancies!.(firms(world))
 
-    max_iterations = 50 * Settings.periods_pr_year
-    iterations = 0
-    while employment_rate(world) < Settings.burnin_employment_rate
+    max_iterations = 10 * Settings.periods_pr_year
+    # Initialize labor market by searching for jobs until burnin_employment_rate reached or convergence is too slow
+    for i in 1:max_iterations
+        employement = employment_rate(world)
         for hh in households(world)
             if is_unemployed(hh) && age(hh) < Settings.pension_age
                 job_search!(hh, world)
             end
         end
-        (iterations += 1) < max_iterations || break
-    end
-    if iterations >= max_iterations
-        println("********************************************************************************")
-        println("Burn in of labor market did not converge:")
-        println("employement at $(employment_rate(world)) after $iterations rounds of search")
-        println("********************************************************************************")
-    else
-        println("********************************************************************************")
-        println("Labor market reached target employment rate after $iterations rounds of search")
-        println("********************************************************************************")
+        employment_rate(world) < Settings.burnin_employment_rate || break
+        if employment_rate(world) - employement < 0.001
+            println("********************************************************************************")
+            println("Convergence too slow in initialization of labor market:")
+            println("employement at $(employment_rate(world)) after $i rounds of search")
+            println("********************************************************************************")
+            break
+        end
     end
 
+    # Initialize production and pay wages
     for f in firms(world)
         set_capacity!(f)
         f.revenues = price(f) * capacity(f)
@@ -88,10 +87,18 @@ function new_world()
         f.cash = 0
     end
 
-    # Initialize consumer market
-    for _ in 1:Settings.periods_pr_year
+    # Initialize consumer market by running provider_search! until burnin_provider_coverage reached or convergence is too slow
+    for i in 1:max_iterations
+        coverage = provider_coverage(world)
         for hh in households(world)
             provider_search!(hh, world)
+        end
+        provider_coverage(world) < Settings.burnin_provider_coverage || break
+        if provider_coverage(world) - coverage < 0.001
+            println("********************************************************************************")
+            println("Convergence too slow in initialization of consumer market:")
+            println("provder coverage at $(provider_coverage(world)) after $i rounds of search")
+            println("********************************************************************************")    
         end
     end
 

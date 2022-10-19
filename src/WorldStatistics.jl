@@ -2,22 +2,28 @@ using Statistics
 using Base.Iterators: partition
 
 
-"""Statistics object keeping track of aggregate statistics"""
+"""
+Statistics object keeping track of aggregate statistics
+
+Integer statistics such as population are kept as floats to allow for example an average over the year or accross multiple scenarios.
+"""
 @with_kw struct StatisticsAgency <: AbstractStatisticsAgency
     price::Vector{Float64} = []
     wage::Vector{Float64} = []
-    population::Vector{Int64} = []
+    population::Vector{Float64} = []
     household_cash::Vector{Float64} = []
-    labor_force::Vector{Int64} = []
-    employed::Vector{Int64} = []
+    labor_force::Vector{Float64} = []
+    employed::Vector{Float64} = []
     labor::Vector{Float64} = []
     capacity::Vector{Float64} = []
     sales::Vector{Float64} = []
     revenues::Vector{Float64} = []
     payroll::Vector{Float64} = []
-    firms::Vector{Int64} = []
+    firms::Vector{Float64} = []
     provider_coverage::Vector{Float64} = []
     productivity::Vector{Float64} = []
+    expected_profitability::Vector{Float64} = []
+    vacancies::Vector{Float64} = []
 
     _growth_trend::Vector{Float64} = []
     _inflation_trend::Vector{Float64} = []
@@ -43,15 +49,19 @@ price(world::AbstractWorld) = revenues(world) / sales(world)
 
 inflation(world::AbstractWorld) = inflation(statistics(world))[end]
 
+expected_profitability(world::AbstractWorld) = world |> investor |> expected_profitability
+
 # Labor market Statistics
 employed(world::AbstractWorld) = firms(world) .|> employees .|> length |> sum
 unemployed(world::AbstractWorld) = labor_force(world) - employed(world)
 employment_rate(world::AbstractWorld) = employed(world) / labor_force(world)
 unemployment_rate(world::AbstractWorld) = unemployed(world) / labor_force(world)
 wage(world::AbstractWorld) = payroll(world) / labor(world)
+vacancies(world::AbstractWorld) = world |> firms .|> vacancies |> sum
 
 # Consumer market statistics
 provider_coverage(world::AbstractWorld) = sum(has_provider.(households(world))) / population(world)
+
 
 Base.length(s::StatisticsAgency) = length(price(s))
 
@@ -73,6 +83,8 @@ function update_statistics!(s::StatisticsAgency, world::AbstractWorld)
     push!(s.firms, n_firms(world))
     push!(s.provider_coverage, provider_coverage(world))
     push!(s.productivity, productivity(world))
+    push!(s.expected_profitability, expected_profitability(world))
+    push!(s.vacancies, vacancies(world))
     push!(s._growth_trend, 1.0)
     push!(s._inflation_trend, 1.0)
     return s
@@ -123,32 +135,6 @@ function subset(s::StatisticsAgency, rng)
     return s_copy
 end
 
-annualize(collection, f) = f.(partition(collection, Settings.periods_pr_year))
-annualize(collection::AbstractArray{Int}, f) = round.(Int, f.(partition(collection, Settings.periods_pr_year)))
-get_end(collection) = collection[end]
-mid_year(collection) = collection[ceil(Int, length(collection))]
-
-function annualize(s::StatisticsAgency)
-    StatisticsAgency(
-        population=annualize(s.population, mean),
-        household_cash=annualize(s.household_cash, mean),
-        labor_force=annualize(s.labor_force, mean),
-        employed=annualize(s.employed, mean),
-        labor=annualize(s.labor, mean),
-        price=annualize(s.price, mean),
-        wage=annualize(s.wage, mean),
-        capacity=annualize(s.capacity, mean),
-        sales=annualize(s.sales, mean),
-        revenues=annualize(s.revenues, mean),
-        payroll=annualize(s.payroll, mean),
-        firms=annualize(s.firms, mean),
-        provider_coverage=annualize(s.provider_coverage, mean),
-        productivity=annualize(s.productivity, mean),
-        _growth_trend=s._growth_trend,
-        _inflation_trend=s._inflation_trend,
-    )
-end
-
 # --------------------------------------------------------------------------------
 # Getters to retrieve statistics from StatisticsAgency
 # --------------------------------------------------------------------------------
@@ -165,7 +151,8 @@ payroll(s::StatisticsAgency) = s.payroll
 firms(s::StatisticsAgency) = s.firms
 provider_coverage(s::StatisticsAgency) = s.provider_coverage
 productivity(s::StatisticsAgency) = s.productivity
-
+expected_profitability(s::StatisticsAgency) = s.expected_profitability
+vacancies(s::StatisticsAgency) = s.vacancies
 profits(s::StatisticsAgency) = revenues(s) - payroll(s)
 
 unemployed(s::StatisticsAgency) = labor_force(s) .- employed(s)
@@ -174,10 +161,8 @@ employment_rate(s::StatisticsAgency) = employed(s) ./ labor_force(s)
 
 inflation(s::StatisticsAgency) = diff(log.(price(s)))
 
-function annual_growth_rate(A)
+"""Returns annual growth rates of a series with <Settings.periods_pr_year> frequency."""
+function annual_growth_rate(collection)
     ppy = Settings.periods_pr_year
-    return [
-        i > ppy ? A[i] / A[i - ppy] - 1 : (A[i] / A[1])^(ppy/i) - 1
-        for i in 2:length(A)
-    ]
+    [i > ppy ? collection[i] / collection[i - ppy] - 1 : NaN for i in 1:length(collection)]
 end
